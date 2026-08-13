@@ -11,16 +11,19 @@ Consumers should re-run extraction after upgrading — most releases change the 
 
 ## [Unreleased]
 
-### Added
-
-- `worldmap-files [outDir]` decodes the world-map pyramid to ordinary WebP tiles for
-  external tools, without the viewer-specific `tiles.pack` container.
+## [0.1.8] — 2026-08-13
 
 ### Fixed
 
-- Item parsing accepts the fourth member of the post-icon enum array. The field is a
-  four-byte front-packed array followed by 43 `0x77` sentinels; treating it as three
-  members misplaced the following flags and caused builds to fail on newer items.
+- **Extraction failed on items from the latest game update.** Item parsing now accepts the fourth
+  member of the post-icon enum array (a four-byte front-packed array followed by 43 `0x77`
+  sentinels); treating it as three members misplaced the following flags and made the build fail
+  on newer items.
+
+### Added
+
+- `worldmap-files [outDir]` decodes the world-map pyramid to ordinary WebP tiles for external
+  tools, without the viewer-specific `tiles.pack` container.
 
 ## [0.1.7] — 2026-07-21
 
@@ -510,7 +513,8 @@ the PAZ archives, the `.bss`/`.dbss` binary tables, the per-item recipe XMLs and
 localization — into JSON (`items.json`, `recipes.json`, and more), plus decoded item icons.
 Distributed via `go install …@latest`.
 
-[Unreleased]: https://github.com/iDevelopThings/bdo-data-extractor/compare/v0.1.7...HEAD
+[Unreleased]: https://github.com/iDevelopThings/bdo-data-extractor/compare/v0.1.8...HEAD
+[0.1.8]: https://github.com/iDevelopThings/bdo-data-extractor/compare/v0.1.7...v0.1.8
 [0.1.7]: https://github.com/iDevelopThings/bdo-data-extractor/compare/v0.1.6...v0.1.7
 [0.1.6]: https://github.com/iDevelopThings/bdo-data-extractor/compare/v0.1.5...v0.1.6
 [0.1.5]: https://github.com/iDevelopThings/bdo-data-extractor/compare/v0.1.4...v0.1.5
