@@ -36,16 +36,43 @@ type native struct {
 	x, y int
 }
 
-// WorldMap decodes the minimap_data radar tiles into a slippy-style zoom pyramid at
-// worldmap/<layer>/<z>/<x>/<y>.webp with a per-layer meta.json. It builds the world and
-// Land of the Morning Light layers (the pack layer duplicates world and is skipped).
+// WorldMap decodes the minimap_data radar tiles into a packed slippy-style zoom pyramid
+// under <out>/worldmap, with one tiles.pack and meta.json per layer. It builds the world
+// and Land of the Morning Light layers (the pack layer duplicates world and is skipped).
 // Each native DDS is decoded once: its pixels are WebP-encoded for the finest level and
 // box-downsampled in memory to compose every coarser level, so no tile is written then
 // read back. It replaces the old flat single-resolution grid and runs standalone rather
 // than through runImages — the mip cascade doesn't fit the one-file-per-job model.
 func WorldMap() error {
-	gameDir := *config.GlobalConfig.GameDir
-	dataDir := *config.GlobalConfig.Out
+	return buildWorldMap(
+		*config.GlobalConfig.GameDir,
+		filepath.Join(*config.GlobalConfig.Out, "worldmap"),
+		newPackedWorldTileWriter,
+	)
+}
+
+// WorldMapFiles decodes the world-map pyramid into individual WebP files at
+// <outDir>/<layer>/<zoom>/<x>/<y>.webp, with one meta.json per layer.
+func WorldMapFiles(outDir string) error {
+	if strings.TrimSpace(outDir) == "" {
+		return fmt.Errorf("world map files: output directory is empty")
+	}
+	return buildWorldMap(*config.GlobalConfig.GameDir, outDir, newFileWorldTileWriter)
+}
+
+type worldTileWriter interface {
+	add(z, x, y int, data []byte) error
+	addMany(z int, coords [][2]int, data []byte)
+	close() error
+}
+
+type worldTileWriterFactory func(dir string) (worldTileWriter, error)
+
+func newPackedWorldTileWriter(dir string) (worldTileWriter, error) {
+	return newTilePack(filepath.Join(dir, tilePackName))
+}
+
+func buildWorldMap(gameDir, outRoot string, newWriter worldTileWriterFactory) error {
 
 	timed := utils.Timed("World Map")
 	defer timed()
@@ -56,7 +83,6 @@ func WorldMap() error {
 	}
 	defer src.Close()
 
-	outRoot := filepath.Join(dataDir, "worldmap")
 	if err := src.Archive.AssertSafeOut(outRoot); err != nil {
 		return err
 	}
@@ -71,13 +97,15 @@ func WorldMap() error {
 		natives[layer] = append(natives[layer], native{file: src.Index.Files[i], x: x, y: y})
 	}
 
-	// Rebuild from scratch — coarse levels are shared-named and would otherwise leave
-	// stale tiles behind across a patch.
-	if err := os.RemoveAll(outRoot); err != nil {
-		return err
-	}
 	if err := os.MkdirAll(outRoot, 0o755); err != nil {
 		return err
+	}
+	// Rebuild the owned layer directories from scratch. Other files in an explicit
+	// worldmap-files output directory belong to the caller and remain untouched.
+	for _, layer := range []string{"world", "morningland"} {
+		if err := os.RemoveAll(filepath.Join(outRoot, layer)); err != nil {
+			return err
+		}
 	}
 
 	rep := progress.Default()
@@ -89,7 +117,7 @@ func WorldMap() error {
 		if len(tiles) == 0 {
 			continue
 		}
-		if err := buildLayer(src, filepath.Join(outRoot, layer), layer, tiles, rep); err != nil {
+		if err := buildLayer(src, filepath.Join(outRoot, layer), layer, tiles, rep, newWriter); err != nil {
 			return err
 		}
 	}
@@ -151,7 +179,7 @@ func worldNativeAt(path string) (layer string, x, y int, ok bool) {
 
 // buildLayer decodes one layer's natives into its finest level and composes the coarser
 // levels in memory down to z=0, then writes the layer's meta.json.
-func buildLayer(src *paz.Source, dir, layer string, tiles []native, rep progress.Reporter) error {
+func buildLayer(src *paz.Source, dir, layer string, tiles []native, rep progress.Reporter, newWriter worldTileWriterFactory) error {
 	xmin, xmax, ymin, ymax := tiles[0].x, tiles[0].x, tiles[0].y, tiles[0].y
 	for _, t := range tiles {
 		xmin, xmax = min(xmin, t.x), max(xmax, t.x)
@@ -202,7 +230,7 @@ func buildLayer(src *paz.Source, dir, layer string, tiles []native, rep progress
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
 	}
-	pack, err := newTilePack(filepath.Join(dir, tilePackName))
+	writer, err := newWriter(dir)
 	if err != nil {
 		return err
 	}
@@ -226,7 +254,7 @@ func buildLayer(src *paz.Source, dir, layer string, tiles []native, rep progress
 		if img == nil || img.Bounds().Dx() != tilePx || img.Bounds().Dy() != tilePx {
 			atomic.AddInt64(&missing, 1)
 		} else {
-			if data, err := encodeTile(img); err == nil && pack.add(zmax, t.x, t.y, data) == nil {
+			if data, err := encodeTile(img); err == nil && writer.add(zmax, t.x, t.y, data) == nil {
 				atomic.AddInt64(&written, 1)
 			}
 			if zmax > 0 {
@@ -256,7 +284,7 @@ func buildLayer(src *paz.Source, dir, layer string, tiles []native, rep progress
 	// Fill the sea: one shared finest blob for every empty cell (deduped in the pack), and
 	// downsample it into z=zmax-1 so coarse zooms show continuous water too.
 	if oceanImg != nil {
-		pack.addMany(zmax, oceanCoords, oceanBytes)
+		writer.addMany(zmax, oceanCoords, oceanBytes)
 		if zmax > 0 {
 			for _, c := range oceanCoords {
 				accumulate(level, oceanImg, c[0], c[1], tilePx)
@@ -268,7 +296,7 @@ func buildLayer(src *paz.Source, dir, layer string, tiles []native, rep progress
 	// down to z=0.
 	var coarse int64
 	for z := zmax - 1; z >= 0; z-- {
-		coarse += writeLevel(pack, z, level)
+		coarse += writeLevel(writer, z, level)
 		if z == 0 {
 			break
 		}
@@ -285,7 +313,7 @@ func buildLayer(src *paz.Source, dir, layer string, tiles []native, rep progress
 		level = next
 	}
 
-	if err := pack.close(); err != nil {
+	if err := writer.close(); err != nil {
 		return err
 	}
 	if err := writeLayerMeta(dir, tilePx, zmax, xmin, xmax, ymin, ymax, oceanColor); err != nil {
@@ -296,10 +324,10 @@ func buildLayer(src *paz.Source, dir, layer string, tiles []native, rep progress
 	return nil
 }
 
-// writeLevel WebP-encodes a whole level's tiles in parallel and appends them to the
-// pack, returning the count written. Encode failures are dropped (reflected in the
+// writeLevel WebP-encodes and writes a whole level's tiles in parallel, returning
+// the count written. Encode failures are dropped (reflected in the
 // count) rather than aborting the run, matching the icon pipeline.
-func writeLevel(pack *tilePack, z int, tiles map[tileCoord]*image.NRGBA) int64 {
+func writeLevel(writer worldTileWriter, z int, tiles map[tileCoord]*image.NRGBA) int64 {
 	coords := make([]tileCoord, 0, len(tiles))
 	for c := range tiles {
 		coords = append(coords, c)
@@ -307,7 +335,7 @@ func writeLevel(pack *tilePack, z int, tiles map[tileCoord]*image.NRGBA) int64 {
 	var written int64
 	parallel.For(len(coords), func(k, _ int) {
 		c := coords[k]
-		if data, err := encodeTile(tiles[c]); err == nil && pack.add(z, c[0], c[1], data) == nil {
+		if data, err := encodeTile(tiles[c]); err == nil && writer.add(z, c[0], c[1], data) == nil {
 			atomic.AddInt64(&written, 1)
 		}
 	})

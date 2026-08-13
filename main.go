@@ -56,6 +56,15 @@ func main() {
 		err = pipeline.RegionMaps()
 	case "worldmap":
 		err = pipeline.WorldMap()
+	case "worldmap-files":
+		outDir := filepath.Join(*conf.Out, "worldmap-files")
+		if len(rest) > 1 {
+			config.DumpUsageAndExit()
+		}
+		if len(rest) == 1 {
+			outDir = rest[0]
+		}
+		err = pipeline.WorldMapFiles(outDir)
 	case "knowledge-icons":
 		err = pipeline.KnowledgeIcons()
 	case "loc":

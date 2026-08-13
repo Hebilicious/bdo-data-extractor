@@ -11,6 +11,11 @@ Consumers should re-run extraction after upgrading — most releases change the 
 
 ## [Unreleased]
 
+### Added
+
+- `worldmap-files [outDir]` decodes the world-map pyramid to ordinary WebP tiles for
+  external tools, without the viewer-specific `tiles.pack` container.
+
 ### Fixed
 
 - Item parsing accepts the fourth member of the post-icon enum array. The field is a

@@ -120,6 +120,7 @@ bdo-data-extractor diff-outputs <left> <right> # compare two build dirs via .bui
 bdo-data-extractor icons                       # decode item icons (DXT .dds) -> ./data/icons/<id>.webp (+ zone-category icons -> ./data/icons/zonecategories/)
 bdo-data-extractor knowledge-icons             # decode knowledge card images -> ./data/knowledge_icons/<path>.webp
 bdo-data-extractor worldmap                    # decode the world map -> ./data/worldmap/<layer>/ (tile pyramid + meta.json)
+bdo-data-extractor worldmap-files [outDir]     # decode the same pyramid as individual <layer>/<z>/<x>/<y>.webp files
 bdo-data-extractor regionmaps                  # decode the region masks -> ./data/regionmaps/*.png
 bdo-data-extractor loc                         # dump the entire localization -> ./data/loc_<lang>.json
 bdo-data-extractor lua-strings                 # dump resolved PAGetString keys -> ./data/lua_strings_<lang>.json
@@ -176,6 +177,7 @@ go tool pprof .tmp\cpu.pprof
 | `data/icons/<id>.webp` | item icons, decoded from the client's DXT-compressed `.dds` and encoded as WebP (via `bdo-data-extractor icons`) |
 | `data/knowledge_icons/<path>.webp` | knowledge card images, decoded from `.dds` (via `bdo-data-extractor knowledge-icons`); each entry's `image` field is the relative path |
 | `data/regionmaps/*.png` | decoded region/territory mask images (via `bdo-data-extractor regionmaps`) |
+| `data/worldmap-files/<layer>/<z>/<x>/<y>.webp` | unpacked world-map tile pyramid for external tools, with a `meta.json` in each layer (via `bdo-data-extractor worldmap-files`) |
 | `data/icons/zonecategories/<iconId>.webp` | Monster Zone Info main/sub-category icons, cropped from their UI atlas (the `icon` ids in `zones.json`), in all three UI states: `<iconId>.webp` (normal), `<iconId>_Over.webp`, `<iconId>_Click.webp`; produced by `bdo-data-extractor icons` |
 | `data/loc_<lang>.json` | the full localization dump, grouped `table → id → field → text` (via `bdo-data-extractor loc`) |
 | `data/lua_strings_<lang>.json` | client `PAGetString` symbolic keys grouped by string sheet, with numeric localization id/field, Korean source text and localized text (via `bdo-data-extractor lua-strings`) |

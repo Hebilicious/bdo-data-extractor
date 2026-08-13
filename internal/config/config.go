@@ -132,6 +132,7 @@ func usage() {
   loc [outPath]              dump the ENTIRE localization file (all tables) -> JSON
   lua-strings [outPath]      dump PAGetString symbolic keys resolved through localization -> JSON
   worldmap                   decode the world map to a tile pyramid in <out>/worldmap/<layer>/
+  worldmap-files [outDir]    decode the world map to individual WebP tiles (default <out>/worldmap-files)
   maps                       same as worldmap (region masks are built by regionmaps)
   regionmaps                 decode each region map to <out>/regionmaps/<map>.png
 
