@@ -322,9 +322,8 @@ type ItemUnknowns struct {
 	// UnknownAfterMarketLimit0 begins the fixed property prefix after the three
 	// variable strings and market registration limit.
 	UnknownAfterMarketLimit0  *int `json:"unknownAfterMarketLimit0,omitempty"`
-	UnknownAfterMarketLimit55 *int `json:"unknownAfterMarketLimit55,omitempty"`
 	UnknownAfterMarketLimit56 *int `json:"unknownAfterMarketLimit56,omitempty"`
-	UnknownAfterMarketLimit58 *int `json:"unknownAfterMarketLimit58,omitempty"`
+	UnknownAfterMarketLimit57 *int `json:"unknownAfterMarketLimit57,omitempty"`
 	UnknownAfterMarketLimit59 *int `json:"unknownAfterMarketLimit59,omitempty"`
 	UnknownAfterMarketLimit60 *int `json:"unknownAfterMarketLimit60,omitempty"`
 	UnknownAfterMarketLimit64 *int `json:"unknownAfterMarketLimit64,omitempty"`
@@ -335,8 +334,8 @@ type ItemUnknowns struct {
 
 	// UnknownPostIconStrings are three inline UTF-16 client messages.
 	UnknownPostIconStrings [3]string `json:"-"`
-	// UnknownAfterMarketLimitSlots is a three-byte front-packed enum array.
-	UnknownAfterMarketLimitSlots [3]uint8 `json:"-"`
+	// UnknownAfterMarketLimitSlots is a four-byte front-packed enum array.
+	UnknownAfterMarketLimitSlots [4]uint8 `json:"-"`
 	// UnknownPostIconTail preserves the type-dependent bytes before the footer.
 	UnknownPostIconTail []byte `json:"-"`
 	// UnknownFooter6 is the final u16 after the crystal group.

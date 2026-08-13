@@ -11,6 +11,12 @@ Consumers should re-run extraction after upgrading — most releases change the 
 
 ## [Unreleased]
 
+### Fixed
+
+- Item parsing accepts the fourth member of the post-icon enum array. The field is a
+  four-byte front-packed array followed by 43 `0x77` sentinels; treating it as three
+  members misplaced the following flags and caused builds to fail on newer items.
+
 ## [0.1.7] — 2026-07-21
 
 Adds gear reform chains and the data behind Dawn crystal sockets, and decodes two more item

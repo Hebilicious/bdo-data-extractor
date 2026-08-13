@@ -39,11 +39,11 @@ func TestDecodeItemRowVariablePostIconStrings(t *testing.T) {
 	record = append(record, 0)
 	record = binary.LittleEndian.AppendUint32(record, 0)
 	record = binary.LittleEndian.AppendUint32(record, 21)
-	record = append(record, 0x77, 0x77, 0x77)
+	record = append(record, 0, 0x77, 0x77, 0x77)
 	for range 43 {
 		record = append(record, 0x77)
 	}
-	record = append(record, 0, 0, 0, 0, 0)
+	record = append(record, 0, 1, 0, 0)
 	for range 6 {
 		record = binary.LittleEndian.AppendUint32(record, 1_000_000)
 	}
@@ -79,6 +79,12 @@ func TestDecodeItemRowVariablePostIconStrings(t *testing.T) {
 	}
 	if !stat.EnhancementType.UnlocksDawnCrystalSlot() {
 		t.Fatal("Kharazad enhancement type did not unlock its Dawn crystal slot")
+	}
+	if got := stat.U.UnknownAfterMarketLimitSlots; got != [4]uint8{0, 0x77, 0x77, 0x77} {
+		t.Fatalf("property slots = %x", got)
+	}
+	if got := stat.U.UnknownAfterMarketLimit57; got == nil || *got != 1 {
+		t.Fatalf("property flag +57 = %v, want 1", got)
 	}
 }
 

@@ -420,10 +420,9 @@ func decodeItemRow(rec []byte, id uint32) (ItemStat, error) {
 				st.U.UnknownAfterMarketLimitSlots[i] = p.Byte()
 			}
 			postReservedOK = p.Repeated(43, 0x77) && postReservedOK
-			st.U.UnknownAfterMarketLimit55 = dev(p.U8(), 0)
 			st.U.UnknownAfterMarketLimit56 = dev(p.U8(), 0)
-			postReservedOK = p.Zero(1) && postReservedOK
-			st.U.UnknownAfterMarketLimit58 = dev(p.U8(), 0)
+			st.U.UnknownAfterMarketLimit57 = dev(p.U8(), 0)
+			postReservedOK = p.Zero(1) && postReservedOK // +58 reserved
 			st.U.UnknownAfterMarketLimit59 = dev(p.U8(), 0)
 			st.U.UnknownAfterMarketLimit60 = dev(int(p.U32()), 1_000_000)
 			st.U.UnknownAfterMarketLimit64 = dev(int(p.U32()), 1_000_000)

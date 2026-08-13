@@ -254,12 +254,11 @@ The limit is followed by an 84-byte fixed prefix:
 | 0 | u8 | unknown | small enum |
 | 1 | u32 | enhancement group key | specific family; normally `enhancementType × 1000 + subtype` |
 | 5 | u32 | enhancement type | broad enhancement system listed below |
-| 9 | byte×3 | unknown enum array | front-packed |
-| 12 | byte×43 | filler | always `0x77` |
-| 55 | u8 | unknown | |
+| 9 | byte×4 | unknown enum array | front-packed; unused entries are `0x77` |
+| 13 | byte×43 | filler | always `0x77` |
 | 56 | u8 | unknown | flag-like |
-| 57 | byte | reserved | zero |
-| 58 | u8 | unknown | flag-like |
+| 57 | u8 | unknown | flag-like |
+| 58 | byte | reserved | zero |
 | 59 | u8 | unknown | small enum |
 | 60 | u32×6 | unknown rates | commonly 1,000,000 |
 
