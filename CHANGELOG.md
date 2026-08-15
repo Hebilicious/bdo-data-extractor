@@ -11,6 +11,8 @@ Consumers should re-run extraction after upgrading — most releases change the 
 
 ## [Unreleased]
 
+## [0.1.9] — 2026-08-15
+
 ### ⚠ Breaking (output changed — re-extract)
 
 - Post-market-limit `ItemUnknowns` use their corrected offsets (`79`, `80`, `81`,
@@ -525,7 +527,8 @@ the PAZ archives, the `.bss`/`.dbss` binary tables, the per-item recipe XMLs and
 localization — into JSON (`items.json`, `recipes.json`, and more), plus decoded item icons.
 Distributed via `go install …@latest`.
 
-[Unreleased]: https://github.com/iDevelopThings/bdo-data-extractor/compare/v0.1.8...HEAD
+[Unreleased]: https://github.com/iDevelopThings/bdo-data-extractor/compare/v0.1.9...HEAD
+[0.1.9]: https://github.com/iDevelopThings/bdo-data-extractor/compare/v0.1.8...v0.1.9
 [0.1.8]: https://github.com/iDevelopThings/bdo-data-extractor/compare/v0.1.7...v0.1.8
 [0.1.7]: https://github.com/iDevelopThings/bdo-data-extractor/compare/v0.1.6...v0.1.7
 [0.1.6]: https://github.com/iDevelopThings/bdo-data-extractor/compare/v0.1.5...v0.1.6
