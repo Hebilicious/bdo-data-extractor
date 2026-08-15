@@ -247,20 +247,17 @@ offset only works when all three strings are empty.
 | 18 | UTF-16×3 | client messages | three `[i64 chars][UTF-16LE]` strings |
 | variable | i64 | marketRegisterLimit | follows the third string; positive values below 2³² are retained |
 
-The limit is followed by an 84-byte fixed prefix:
+The limit is followed by a 105-byte fixed prefix:
 
 | Relative @ from limit end | Type | Field | Notes |
 |---:|---|---|---|
 | 0 | u8 | unknown | small enum |
 | 1 | u32 | enhancement group key | specific family; normally `enhancementType × 1000 + subtype` |
 | 5 | u32 | enhancement type | broad enhancement system listed below |
-| 9 | byte×4 | unknown enum array | front-packed; unused entries are `0x77` |
-| 13 | byte×43 | filler | always `0x77` |
-| 56 | u8 | unknown | flag-like |
-| 57 | u8 | unknown | flag-like |
-| 58 | byte | reserved | zero |
-| 59 | u8 | unknown | small enum |
-| 60 | u32×6 | unknown rates | commonly 1,000,000 |
+| 9 | byte×70 | unknown property array | front-packed; unused entries are `0x77` |
+| 79 | u8 | unknown | flag-like |
+| 80 | u8 | unknown | flag-like |
+| 81 | u32×6 | unknown rates | commonly 1,000,000 |
 
 The enhancement key distinguishes families within one type. For example, Kharazad
 uses keys 21000–21003 for necklace, ring, belt and earring, while Preonne uses
@@ -304,9 +301,8 @@ avoid duplicating hundreds or thousands of opaque bytes on every item.
 - **Contribution-point cost** — search from `icEnd` for the 7-byte marker
   `13 06 00 00 00 00 13`; cost = `u32(marker + 20)`, kept when 1..1000 ("[CP]" rental
   gear and placeables).
-- **Footer** — ends `[u32 self-id][u16 crystalGroup][u16 unknown]`; group `!= 0xFFFF`
-  is the crystal transfusion group (name + max count from localization table 121).
-  The final word currently uses 0, 1 and 256 and is not a constant marker.
+- **Footer** — ends `[u32 self-id][u16 crystalGroup]`; group `!= 0xFFFF` is the
+  crystal transfusion group (name + max count from localization table 121).
 
 ---
 

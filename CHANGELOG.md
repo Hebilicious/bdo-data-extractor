@@ -11,6 +11,18 @@ Consumers should re-run extraction after upgrading — most releases change the 
 
 ## [Unreleased]
 
+### ⚠ Breaking (output changed — re-extract)
+
+- Post-market-limit `ItemUnknowns` use their corrected offsets (`79`, `80`, `81`,
+  `85`, `89`, `93`, `97`, `101`). `unknownFooter6` is removed because the current
+  footer ends at the crystal-group word. The Go-only raw property field is renamed
+  from `UnknownAfterMarketLimitSlots` to `UnknownAfterMarketLimitProperties`.
+
+### Fixed
+
+- Item parsing supports the expanded 70-byte post-icon property array and six-byte
+  record footer used by the current client.
+
 ## [0.1.8] — 2026-08-13
 
 ### Fixed

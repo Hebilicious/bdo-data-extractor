@@ -321,25 +321,23 @@ type ItemUnknowns struct {
 
 	// UnknownAfterMarketLimit0 begins the fixed property prefix after the three
 	// variable strings and market registration limit.
-	UnknownAfterMarketLimit0  *int `json:"unknownAfterMarketLimit0,omitempty"`
-	UnknownAfterMarketLimit56 *int `json:"unknownAfterMarketLimit56,omitempty"`
-	UnknownAfterMarketLimit57 *int `json:"unknownAfterMarketLimit57,omitempty"`
-	UnknownAfterMarketLimit59 *int `json:"unknownAfterMarketLimit59,omitempty"`
-	UnknownAfterMarketLimit60 *int `json:"unknownAfterMarketLimit60,omitempty"`
-	UnknownAfterMarketLimit64 *int `json:"unknownAfterMarketLimit64,omitempty"`
-	UnknownAfterMarketLimit68 *int `json:"unknownAfterMarketLimit68,omitempty"`
-	UnknownAfterMarketLimit72 *int `json:"unknownAfterMarketLimit72,omitempty"`
-	UnknownAfterMarketLimit76 *int `json:"unknownAfterMarketLimit76,omitempty"`
-	UnknownAfterMarketLimit80 *int `json:"unknownAfterMarketLimit80,omitempty"`
+	UnknownAfterMarketLimit0   *int `json:"unknownAfterMarketLimit0,omitempty"`
+	UnknownAfterMarketLimit79  *int `json:"unknownAfterMarketLimit79,omitempty"`
+	UnknownAfterMarketLimit80  *int `json:"unknownAfterMarketLimit80,omitempty"`
+	UnknownAfterMarketLimit81  *int `json:"unknownAfterMarketLimit81,omitempty"`
+	UnknownAfterMarketLimit85  *int `json:"unknownAfterMarketLimit85,omitempty"`
+	UnknownAfterMarketLimit89  *int `json:"unknownAfterMarketLimit89,omitempty"`
+	UnknownAfterMarketLimit93  *int `json:"unknownAfterMarketLimit93,omitempty"`
+	UnknownAfterMarketLimit97  *int `json:"unknownAfterMarketLimit97,omitempty"`
+	UnknownAfterMarketLimit101 *int `json:"unknownAfterMarketLimit101,omitempty"`
 
 	// UnknownPostIconStrings are three inline UTF-16 client messages.
 	UnknownPostIconStrings [3]string `json:"-"`
-	// UnknownAfterMarketLimitSlots is a four-byte front-packed enum array.
-	UnknownAfterMarketLimitSlots [4]uint8 `json:"-"`
+	// UnknownAfterMarketLimitProperties is a front-packed property array; unused
+	// entries are 0x77.
+	UnknownAfterMarketLimitProperties [70]uint8 `json:"-"`
 	// UnknownPostIconTail preserves the type-dependent bytes before the footer.
 	UnknownPostIconTail []byte `json:"-"`
-	// UnknownFooter6 is the final u16 after the crystal group.
-	UnknownFooter6 *int `json:"unknownFooter6,omitempty"`
 }
 
 // Map returns the populated unknown fields keyed by their JSON name (unknown144,

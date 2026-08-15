@@ -41,7 +41,7 @@ type ItemStat struct {
 	RequiredLevel int              // byte @97, required character level (0/1 = none)
 	MaxStack      int64            // u32 @101, max stack size (sentinels = unlimited -> 0)
 	DyeParts      int              // byte @172, dyeable part count
-	JewelGroup    int              // u16 @ len-4 (record footer), crystal transfusion group; -1 = none
+	JewelGroup    int              // u16 @ len-2 (record footer), crystal transfusion group; -1 = none
 	Icon          string           // "New_Icon/....dds" embedded in the row
 
 	// Fields following the variable icon string:
@@ -121,6 +121,7 @@ const (
 	eItemTypeEquip = 1     // EItemType.Equip — only equipment carries durability
 	slotNone       = 46    // the "no slot" filler value of the slot array
 	noJewelGroup   = 65535 // footer group sentinel: not a socket crystal
+	itemFooterSize = 6     // u32 self-id + u16 crystal group
 )
 
 var iconMarker = []byte("New_Icon")
@@ -387,8 +388,8 @@ func decodeItemRow(rec []byte, id uint32) (ItemStat, error) {
 	icEnd := -1
 	if ic := bytes.Index(rec, iconMarker); ic >= 16 {
 		icEnd = ic - 8 + 8 + int(int64(bss.U64(rec, ic-8)))
-		if icEnd >= ic && icEnd+18 <= len(rec)-8 {
-			p := bss.NewCursor(rec, icEnd, len(rec)-8)
+		if icEnd >= ic && icEnd+18 <= len(rec)-itemFooterSize {
+			p := bss.NewCursor(rec, icEnd, len(rec)-itemFooterSize)
 			postReservedOK := true
 			st.Marketable = p.Bool()                     // +0
 			st.U.UnknownIcon1 = dev(p.U8(), 0)           // +1
@@ -416,20 +417,24 @@ func decodeItemRow(rec []byte, id uint32) (ItemStat, error) {
 			st.U.UnknownAfterMarketLimit0 = dev(p.U8(), 0)
 			st.EnhancementGroupKey = p.U32()
 			st.EnhancementType = model.ItemEnhancementType(p.U32())
-			for i := range st.U.UnknownAfterMarketLimitSlots {
-				st.U.UnknownAfterMarketLimitSlots[i] = p.Byte()
+			paddingStarted := false
+			for i := range st.U.UnknownAfterMarketLimitProperties {
+				value := p.Byte()
+				st.U.UnknownAfterMarketLimitProperties[i] = value
+				if value == 0x77 {
+					paddingStarted = true
+				} else if paddingStarted {
+					postReservedOK = false
+				}
 			}
-			postReservedOK = p.Repeated(43, 0x77) && postReservedOK
-			st.U.UnknownAfterMarketLimit56 = dev(p.U8(), 0)
-			st.U.UnknownAfterMarketLimit57 = dev(p.U8(), 0)
-			postReservedOK = p.Zero(1) && postReservedOK // +58 reserved
-			st.U.UnknownAfterMarketLimit59 = dev(p.U8(), 0)
-			st.U.UnknownAfterMarketLimit60 = dev(int(p.U32()), 1_000_000)
-			st.U.UnknownAfterMarketLimit64 = dev(int(p.U32()), 1_000_000)
-			st.U.UnknownAfterMarketLimit68 = dev(int(p.U32()), 1_000_000)
-			st.U.UnknownAfterMarketLimit72 = dev(int(p.U32()), 1_000_000)
-			st.U.UnknownAfterMarketLimit76 = dev(int(p.U32()), 1_000_000)
-			st.U.UnknownAfterMarketLimit80 = dev(int(p.U32()), 1_000_000)
+			st.U.UnknownAfterMarketLimit79 = dev(p.U8(), 0)
+			st.U.UnknownAfterMarketLimit80 = dev(p.U8(), 0)
+			st.U.UnknownAfterMarketLimit81 = dev(int(p.U32()), 1_000_000)
+			st.U.UnknownAfterMarketLimit85 = dev(int(p.U32()), 1_000_000)
+			st.U.UnknownAfterMarketLimit89 = dev(int(p.U32()), 1_000_000)
+			st.U.UnknownAfterMarketLimit93 = dev(int(p.U32()), 1_000_000)
+			st.U.UnknownAfterMarketLimit97 = dev(int(p.U32()), 1_000_000)
+			st.U.UnknownAfterMarketLimit101 = dev(int(p.U32()), 1_000_000)
 			st.U.UnknownPostIconTail = p.Bytes(p.Remaining())
 			if !p.OK() || !postReservedOK {
 				return st, fmt.Errorf("itemenchant item %d: post-icon layout changed at %d", id, p.Pos()-icEnd)
@@ -440,21 +445,20 @@ func decodeItemRow(rec []byte, id uint32) (ItemStat, error) {
 		}
 	} else {
 		// Two live rows use legacy icon paths. Preserve their variable section.
-		if len(rec) < 216 {
+		if len(rec) < 212+itemFooterSize {
 			return st, fmt.Errorf("itemenchant item %d: record too short for post-icon tail (%d bytes)", id, len(rec))
 		}
-		st.U.UnknownPostIconTail = rec[212 : len(rec)-8]
+		st.U.UnknownPostIconTail = rec[212 : len(rec)-itemFooterSize]
 	}
 
 	// --- footer: crystal transfusion group (self-id echo then u16 group) ---
 	st.JewelGroup = -1
-	if l := len(rec); l < 12 || bss.U32(rec, l-8) != id {
+	if l := len(rec); l < itemFooterSize || bss.U32(rec, l-itemFooterSize) != id {
 		return st, fmt.Errorf("itemenchant item %d: invalid footer", id)
 	}
-	if g := bss.U16(rec, len(rec)-4); g != noJewelGroup {
+	if g := bss.U16(rec, len(rec)-2); g != noJewelGroup {
 		st.JewelGroup = int(g)
 	}
-	st.U.UnknownFooter6 = dev(int(bss.U16(rec, len(rec)-2)), 0)
 	return st, nil
 }
 
