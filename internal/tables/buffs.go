@@ -204,8 +204,10 @@ func DecodeSkillEffects(offsetRaw, data []byte, buffs map[uint32]Buff, wideBuffI
 			se.CooldownMs = cd
 		}
 		for j := skillBuffList; j+idSize <= len(rec); j += idSize {
-			id := bss.U32(rec, j)
-			if !wideBuffIDs {
+			var id uint32
+			if wideBuffIDs {
+				id = bss.U32(rec, j)
+			} else {
 				id = uint32(bss.U16(rec, j))
 			}
 			if id == 0 {

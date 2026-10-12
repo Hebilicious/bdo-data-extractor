@@ -125,9 +125,11 @@ func appendTestUTF8(dst []byte, value string) []byte {
 }
 
 func TestDecodeCharacterLevelRules(t *testing.T) {
-	for _, layout := range experienceRecordLayouts {
+	// The layouts clients have shipped: 228-byte records, and client 3464's 236-byte
+	// records with every field 8 bytes later.
+	for _, layout := range []struct{ size, shift int }{{size: 228, shift: 0}, {size: 236, shift: 8}} {
 		t.Run(fmt.Sprintf("%d-byte records", layout.size), func(t *testing.T) {
-			testDecodeCharacterLevelRules(t, layout.size, layout.leadingReserved-24)
+			testDecodeCharacterLevelRules(t, layout.size, layout.shift)
 		})
 	}
 }

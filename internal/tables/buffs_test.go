@@ -96,6 +96,30 @@ func TestDecodeBuffsWithU32Keys(t *testing.T) {
 	}
 }
 
+// Older clients list u16 buff indices, and a record may end on the last one.
+func TestDecodeSkillEffectsWithU16Buffs(t *testing.T) {
+	t.Parallel()
+
+	const buffIndex, skillKey = uint32(321), uint32(3_735_879_681)
+	buffs := map[uint32]Buff{buffIndex: {Index: buffIndex}}
+	skill := make([]byte, skillBuffList)
+	skill = binary.LittleEndian.AppendUint16(skill, uint16(buffIndex))
+	skillOffset := append([]byte("PABR"), 0, 0, 0, 0)
+	binary.LittleEndian.PutUint32(skillOffset[4:], 1)
+	skillOffset = binary.LittleEndian.AppendUint32(skillOffset, skillKey)
+	skillOffset = binary.LittleEndian.AppendUint32(skillOffset, 4)
+	skillOffset = binary.LittleEndian.AppendUint32(skillOffset, uint32(len(skill)))
+	skillData := append(binary.LittleEndian.AppendUint32(nil, 1), skill...)
+
+	effects, err := DecodeSkillEffects(skillOffset, skillData, buffs, false)
+	if err != nil {
+		t.Fatalf("DecodeSkillEffects() error = %v", err)
+	}
+	if got := effects[skillKey]; len(got.Buffs) != 1 || got.Buffs[0] != buffIndex {
+		t.Fatalf("DecodeSkillEffects() = %#v", got)
+	}
+}
+
 func TestDecodeBuffsRejectsIndexKeyMismatch(t *testing.T) {
 	t.Parallel()
 
