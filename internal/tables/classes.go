@@ -263,7 +263,7 @@ func DecodeCharacterLevelRules(data []byte) ([]model.CharacterLevelRule, error) 
 			recordClassType := model.CharacterClassType(c.U32())
 			recordLevel := int(c.U32())
 			var experience uint64
-			reservedOK := true
+			var reservedOK bool
 			if hasExperience {
 				experience = c.U64()
 				reservedOK = c.Zero(leadingReserved - 8)
