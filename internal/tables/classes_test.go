@@ -144,7 +144,9 @@ func testDecodeCharacterLevelRules(t *testing.T, recordSize, shift int) {
 			record := make([]byte, recordSize)
 			binary.LittleEndian.PutUint32(record, uint32(classType))
 			binary.LittleEndian.PutUint32(record[4:], uint32(level))
-			binary.LittleEndian.PutUint64(record[8:], uint64(level)<<32|20)
+			if shift > 0 {
+				binary.LittleEndian.PutUint64(record[8:], uint64(level)<<32|20)
+			}
 			binary.LittleEndian.PutUint32(record[shift+32:], math.Float32bits(1))
 			binary.LittleEndian.PutUint32(record[shift+36:], 1)
 			binary.LittleEndian.PutUint32(record[shift+60:], math.Float32bits(1))
@@ -187,14 +189,25 @@ func testDecodeCharacterLevelRules(t *testing.T, recordSize, shift int) {
 	if level60.UnknownStat4 != 1 || level60.UnknownStat8 != 1 || level60.UnknownStat32 != 1 || level60.UnknownStat80 != 1 || level60.UnknownStat112 != 1 {
 		t.Fatalf("class 4 level 60 scalar stat unknowns = %+v", level60.CharacterLevelStat)
 	}
-	if level60.Experience != 60<<32|20 {
-		t.Fatalf("class 4 level 60 experience = %d", level60.Experience)
+	wantExperience := uint64(0)
+	if shift > 0 {
+		wantExperience = 60<<32 | 20
+	}
+	if level60.Experience != wantExperience {
+		t.Fatalf("class 4 level 60 experience = %d, want %d", level60.Experience, wantExperience)
 	}
 	if level60.UnknownStat60 != 5 || level60.UnknownStat64 != 5 || level60.UnknownStat68 != 5 || level60.UnknownStat100 != 5 || level60.UnknownStat104 != 5 || level60.UnknownStat108 != 5 {
 		t.Fatalf("class 4 level 60 triad stat unknowns = %+v", level60.CharacterLevelStat)
 	}
 
-	data[24] = 1
+	data[8+8] = 1 // the first record's first byte after its class and level
+	if shift == 0 {
+		if _, err := DecodeCharacterLevelRules(data); err == nil {
+			t.Fatal("nonzero reserved level-rule byte was accepted")
+		}
+		data[8+8] = 0
+	}
+	data[8+24] = 1
 	if _, err := DecodeCharacterLevelRules(data); err == nil {
 		t.Fatal("nonzero reserved level-rule byte was accepted")
 	}
