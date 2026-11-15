@@ -218,10 +218,13 @@ const (
 
 // experienceRecordLayouts are the per-level record sizes clients have shipped,
 // with the bytes that follow the class and level. Client 3464 grew them from 24
-// to 32 bytes; client 3513 stores each level's experience in the first eight of those 32.
-var experienceRecordLayouts = []struct{ size, leadingReserved int }{
+// to 32 bytes, and from client 3513 their first eight hold the level's experience.
+var experienceRecordLayouts = []struct {
+	size, leadingReserved int
+	experience            bool
+}{
 	{size: 228, leadingReserved: 24},
-	{size: 236, leadingReserved: 32},
+	{size: 236, leadingReserved: 32, experience: true},
 }
 
 // DecodeCharacterLevelRules reads every class and level record in experience.bss.
@@ -235,11 +238,11 @@ func DecodeCharacterLevelRules(data []byte) ([]model.CharacterLevelRule, error) 
 	}
 
 	recordAreaSize := pabr.StringTablePos - 4 - experienceFooterSize
-	experienceRecordSize, leadingReserved, groupSize := 0, 0, 0
+	experienceRecordSize, leadingReserved, groupSize, hasExperience := 0, 0, 0, false
 	for _, layout := range experienceRecordLayouts {
 		size := 4 + experienceLevelCount*layout.size
 		if recordAreaSize > 0 && recordAreaSize%size == 0 {
-			experienceRecordSize, leadingReserved, groupSize = layout.size, layout.leadingReserved, size
+			experienceRecordSize, leadingReserved, groupSize, hasExperience = layout.size, layout.leadingReserved, size, layout.experience
 			break
 		}
 	}
@@ -259,8 +262,14 @@ func DecodeCharacterLevelRules(data []byte) ([]model.CharacterLevelRule, error) 
 			c := bss.NewCursor(data, pos, pos+experienceRecordSize)
 			recordClassType := model.CharacterClassType(c.U32())
 			recordLevel := int(c.U32())
-			experience := c.U64()
-			reservedOK := c.Zero(leadingReserved - 8)
+			var experience uint64
+			reservedOK := true
+			if hasExperience {
+				experience = c.U64()
+				reservedOK = c.Zero(leadingReserved - 8)
+			} else {
+				reservedOK = c.Zero(leadingReserved)
+			}
 			rule := model.CharacterLevelRule{
 				ClassType:  recordClassType,
 				Level:      recordLevel,
