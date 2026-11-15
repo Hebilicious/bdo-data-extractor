@@ -29,7 +29,11 @@ func DecodePlantNodeProducts(
 	if err != nil {
 		return PlantNodeProducts{}, err
 	}
-	subgroupEntries, err := bss.ParseU16OffsetIndex("itemsubgroup", subgroupIndex, len(subgroupData))
+	parseSubgroupIndex := bss.ParseU16OffsetIndex
+	if bss.HasU32KeyRows(subgroupIndex) {
+		parseSubgroupIndex = bss.ParseU32KeyOffsetIndex
+	}
+	subgroupEntries, err := parseSubgroupIndex("itemsubgroup", subgroupIndex, len(subgroupData))
 	if err != nil {
 		return PlantNodeProducts{}, fmt.Errorf("parse item subgroup index: %w", err)
 	}
@@ -135,6 +139,18 @@ func decodePlantExchangeGroups(data []byte) (map[uint32]uint32, error) {
 	return out, nil
 }
 
+const itemSubgroupItemSize = 4 + 131
+
+// itemSubgroupGap is the byte count between a subgroup's key and its item
+// count: 10, or 12 from client 3513. An item is an odd 135 bytes, so a record's
+// size fits exactly one of the two layouts.
+func itemSubgroupGap(recordSize int) int {
+	if (recordSize-4-12-4)%itemSubgroupItemSize == 0 {
+		return 12
+	}
+	return 10
+}
+
 func decodeItemSubgroup(data []byte, entry bss.IndexEntry) ([]uint32, error) {
 	rec, ok := entry.Slice(data)
 	if !ok {
@@ -142,7 +158,7 @@ func decodeItemSubgroup(data []byte, entry bss.IndexEntry) ([]uint32, error) {
 	}
 	c := bss.NewCursor(rec, 0, len(rec))
 	key := c.U32()
-	c.Skip(10)
+	c.Skip(itemSubgroupGap(len(rec)))
 	count := int(c.U32())
 	if count < 0 || count > 100 {
 		return nil, fmt.Errorf("item subgroup %d has invalid item count %d", entry.Key, count)

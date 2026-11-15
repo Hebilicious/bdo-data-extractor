@@ -217,8 +217,8 @@ const (
 )
 
 // experienceRecordLayouts are the per-level record sizes clients have shipped,
-// with the zero bytes that follow the class and level. Client 3464 grew them
-// from 24 to 32 bytes; the rest of the record is unchanged.
+// with the bytes that follow the class and level. Client 3464 grew them from 24
+// to 32 bytes; client 3513 stores each level's experience in the first eight of those 32.
 var experienceRecordLayouts = []struct{ size, leadingReserved int }{
 	{size: 228, leadingReserved: 24},
 	{size: 236, leadingReserved: 32},
@@ -259,10 +259,12 @@ func DecodeCharacterLevelRules(data []byte) ([]model.CharacterLevelRule, error) 
 			c := bss.NewCursor(data, pos, pos+experienceRecordSize)
 			recordClassType := model.CharacterClassType(c.U32())
 			recordLevel := int(c.U32())
-			reservedOK := c.Zero(leadingReserved)
+			experience := c.U64()
+			reservedOK := c.Zero(leadingReserved - 8)
 			rule := model.CharacterLevelRule{
-				ClassType: recordClassType,
-				Level:     recordLevel,
+				ClassType:  recordClassType,
+				Level:      recordLevel,
+				Experience: experience,
 				CharacterLevelStat: model.CharacterLevelStat{
 					UnknownStat4: c.F32(),
 					UnknownStat8: c.U32(),
