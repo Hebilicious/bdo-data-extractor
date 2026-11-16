@@ -15,7 +15,6 @@
 
 /.claude/
 /.agents/
-AGENTS.md
 CLAUDE.md
 
 
@@ -36,3 +35,4 @@ CLAUDE.md
 .idea/
 .vscode/
 .DS_Store
+.worktrees/
