@@ -8,4 +8,4 @@
 - This repository is a fork. Push the branch to `origin` and open the pull request against this fork's
   `main` (`gh pr create --repo Hebilicious/bdo-data-extractor --base main`), never against the upstream.
 - When the pull request merges or closes, remove its worktree (`git worktree remove .worktrees/<branch>`),
-  every other worktree you made for the task (a baseline, a comparison), and its branch.
+  every other worktree you made for the task (a baseline, a comparison).
