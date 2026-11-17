@@ -96,6 +96,9 @@ type CharacterLevelRule struct {
 
 	ClassType CharacterClassType `json:"classType"`
 	Level     int                `json:"level"`
+	// Experience is the u64 after the class and level, which grows with the
+	// level; clients before 3513 leave it zero.
+	Experience uint64 `json:"experience,omitempty"`
 }
 
 // CharacterProgression is the client-side playable class and family-wide

@@ -2,6 +2,7 @@ package tables
 
 import (
 	"encoding/binary"
+	"fmt"
 	"reflect"
 	"testing"
 
@@ -9,6 +10,15 @@ import (
 )
 
 func TestDecodePlantNodeProducts(t *testing.T) {
+	// Client 3513 widened the item subgroup index's key from u16 to u32.
+	for _, keySize := range []int{2, 4} {
+		t.Run(fmt.Sprintf("u%d subgroup keys", keySize*8), func(t *testing.T) {
+			testDecodePlantNodeProducts(t, keySize)
+		})
+	}
+}
+
+func testDecodePlantNodeProducts(t *testing.T, keySize int) {
 	plantData := binary.LittleEndian.AppendUint32(nil, 3)
 	plantRows := [][]byte{
 		plantProductRow(10, 100, []byte{0, 1}),
@@ -30,11 +40,19 @@ func TestDecodePlantNodeProducts(t *testing.T) {
 	)
 	subgroupData := binary.LittleEndian.AppendUint32(nil, 1)
 	subgroupOffset := len(subgroupData)
-	subgroup := itemSubgroupRow(500, 1000, 2000)
+	gap := 10
+	if keySize == 4 {
+		gap = 12
+	}
+	subgroup := itemSubgroupRowWithGap(gap, 500, 1000, 2000)
 	subgroupData = append(subgroupData, subgroup...)
 	subgroupIndex := append([]byte("PABR"), make([]byte, 4)...)
 	binary.LittleEndian.PutUint32(subgroupIndex[4:], 1)
-	subgroupIndex = binary.LittleEndian.AppendUint16(subgroupIndex, 500)
+	if keySize == 4 {
+		subgroupIndex = binary.LittleEndian.AppendUint32(subgroupIndex, 500)
+	} else {
+		subgroupIndex = binary.LittleEndian.AppendUint16(subgroupIndex, 500)
+	}
 	subgroupIndex = binary.LittleEndian.AppendUint32(subgroupIndex, uint32(subgroupOffset))
 	subgroupIndex = binary.LittleEndian.AppendUint32(subgroupIndex, uint32(len(subgroup)))
 
@@ -89,8 +107,12 @@ func plantExchangeTable(entries ...[2]uint32) []byte {
 }
 
 func itemSubgroupRow(key uint32, items ...uint32) []byte {
+	return itemSubgroupRowWithGap(10, key, items...)
+}
+
+func itemSubgroupRowWithGap(gap int, key uint32, items ...uint32) []byte {
 	row := binary.LittleEndian.AppendUint32(nil, key)
-	row = append(row, make([]byte, 10)...)
+	row = append(row, make([]byte, gap)...)
 	row = binary.LittleEndian.AppendUint32(row, uint32(len(items)))
 	for _, item := range items {
 		row = binary.LittleEndian.AppendUint32(row, item)

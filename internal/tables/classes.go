@@ -213,9 +213,19 @@ func readFloatArray(c *bss.Cursor, count int) []float64 {
 
 const (
 	experienceLevelCount = 131
-	experienceRecordSize = 228
 	experienceFooterSize = 200
 )
+
+// experienceRecordLayouts are the per-level record sizes clients have shipped,
+// with the bytes that follow the class and level. Client 3464 grew them from 24
+// to 32 bytes, and from client 3513 their first eight hold the level's experience.
+var experienceRecordLayouts = []struct {
+	size, leadingReserved int
+	experience            bool
+}{
+	{size: 228, leadingReserved: 24},
+	{size: 236, leadingReserved: 32, experience: true},
+}
 
 // DecodeCharacterLevelRules reads every class and level record in experience.bss.
 func DecodeCharacterLevelRules(data []byte) ([]model.CharacterLevelRule, error) {
@@ -227,10 +237,17 @@ func DecodeCharacterLevelRules(data []byte) ([]model.CharacterLevelRule, error) 
 		return nil, fmt.Errorf("experience: first class has %d levels, want %d", pabr.Rows, experienceLevelCount)
 	}
 
-	groupSize := 4 + experienceLevelCount*experienceRecordSize
 	recordAreaSize := pabr.StringTablePos - 4 - experienceFooterSize
-	if recordAreaSize <= 0 || recordAreaSize%groupSize != 0 {
-		return nil, fmt.Errorf("experience: %d record-area bytes do not tile into %d-byte class groups", recordAreaSize, groupSize)
+	experienceRecordSize, leadingReserved, groupSize, hasExperience := 0, 0, 0, false
+	for _, layout := range experienceRecordLayouts {
+		size := 4 + experienceLevelCount*layout.size
+		if recordAreaSize > 0 && recordAreaSize%size == 0 {
+			experienceRecordSize, leadingReserved, groupSize, hasExperience = layout.size, layout.leadingReserved, size, layout.experience
+			break
+		}
+	}
+	if groupSize == 0 {
+		return nil, fmt.Errorf("experience: %d record-area bytes do not tile into class groups of any known record size", recordAreaSize)
 	}
 	classCount := recordAreaSize / groupSize
 	out := make([]model.CharacterLevelRule, 0, classCount*experienceLevelCount)
@@ -245,10 +262,18 @@ func DecodeCharacterLevelRules(data []byte) ([]model.CharacterLevelRule, error) 
 			c := bss.NewCursor(data, pos, pos+experienceRecordSize)
 			recordClassType := model.CharacterClassType(c.U32())
 			recordLevel := int(c.U32())
-			reservedOK := c.Zero(24)
+			var experience uint64
+			var reservedOK bool
+			if hasExperience {
+				experience = c.U64()
+				reservedOK = c.Zero(leadingReserved - 8)
+			} else {
+				reservedOK = c.Zero(leadingReserved)
+			}
 			rule := model.CharacterLevelRule{
-				ClassType: recordClassType,
-				Level:     recordLevel,
+				ClassType:  recordClassType,
+				Level:      recordLevel,
+				Experience: experience,
 				CharacterLevelStat: model.CharacterLevelStat{
 					UnknownStat4: c.F32(),
 					UnknownStat8: c.U32(),

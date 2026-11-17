@@ -8,7 +8,10 @@ import (
 	"github.com/idevelopthings/bdo-data-extractor/internal/bss"
 )
 
-const questConditionHeaderSize = 25
+const (
+	questConditionHeaderSize = 25
+	questRowCountSize        = 4
+)
 
 // QuestConditionRow is the client-evaluated acceptance and completion DSL for
 // one quest record.
@@ -16,25 +19,29 @@ type QuestConditionRow struct {
 	AcceptDSL              string
 	CompleteDSL            string
 	SourceObjective        string
-	UnknownHeader          [25]byte
+	UnknownHeader          []byte
 	UnknownObjectivePrefix []byte
 	UnknownEnd             uint32
 }
 
-// DecodeQuestConditions reads the condition tail shared by ordinary quest.dbss
-// records. allquestlist.bss supplies their physical order because quest.dbss has
-// no separate offset index.
+// DecodeQuestConditions reads the condition block that precedes each quest.dbss
+// record. allquestlist.bss supplies the records' physical order because
+// quest.dbss has no separate offset index.
+//
+// A quest's condition block ends exactly where its record begins: the first
+// quest's block sits between the row count and the first record, and every
+// later quest's block closes the record before it.
 func DecodeQuestConditions(questListData, questData []byte) (map[uint32]QuestConditionRow, error) {
 	questIDs, count, err := decodeOrderedQuestIDs(questListData)
 	if err != nil {
 		return nil, err
 	}
-	if len(questData) < 4 || int(bss.U32(questData, 0)) != count {
+	if len(questData) < questRowCountSize || int(bss.U32(questData, 0)) != count {
 		return nil, fmt.Errorf("quest: row count does not match allquestlist count %d", count)
 	}
 
 	starts := make([]int, len(questIDs))
-	from := 4
+	from := questRowCountSize
 	for i, id := range questIDs {
 		pos := indexQuestID(questData, from, id)
 		if pos < 0 {
@@ -44,20 +51,19 @@ func DecodeQuestConditions(questListData, questData []byte) (map[uint32]QuestCon
 		from = pos + 4
 	}
 
-	rows := make(map[uint32]QuestConditionRow, len(questIDs)-1)
+	rows := make(map[uint32]QuestConditionRow, len(questIDs))
 	for i, id := range questIDs {
-		end := len(questData)
-		if i+1 < len(starts) {
-			end = starts[i+1]
+		var (
+			row QuestConditionRow
+			ok  bool
+		)
+		if i == 0 {
+			row, ok = findFirstQuestConditionBlock(questData[:starts[0]])
+		} else {
+			row, ok = findQuestConditionBlock(questData[starts[i-1]:starts[i]], questIDs[i-1])
 		}
-		row, ok := decodeQuestConditionTail(questData[starts[i]:end], id)
 		if !ok {
-			// The final client row is an intentionally incomplete placeholder. All
-			// indexed records before it must carry the normal condition tail.
-			if i != len(questIDs)-1 {
-				return nil, fmt.Errorf("quest: quest %d-%d has no condition tail", uint16(id), uint16(id>>16))
-			}
-			continue
+			return nil, fmt.Errorf("quest: quest %d-%d has no condition block before its record", uint16(id), uint16(id>>16))
 		}
 		rows[id] = row
 	}
@@ -99,45 +105,72 @@ func indexQuestID(data []byte, from int, id uint32) int {
 	return from + rel
 }
 
-func decodeQuestConditionTail(record []byte, id uint32) (QuestConditionRow, bool) {
+// findFirstQuestConditionBlock reads the first quest's condition block, which
+// sits between the row count and the first record. It has no preceding record
+// whose id could open it, and its header is shorter than the later blocks', so
+// its condition strings are found by where they parse through to the record.
+func findFirstQuestConditionBlock(prefix []byte) (QuestConditionRow, bool) {
+	for stringsPos := questRowCountSize; stringsPos+8 <= len(prefix); stringsPos++ {
+		if bss.PeekUTF16Chars(prefix, stringsPos) == 0 {
+			continue
+		}
+		if row, ok := decodeQuestConditionStrings(prefix, stringsPos); ok {
+			row.UnknownHeader = bytes.Clone(prefix[questRowCountSize:stringsPos])
+			return row, true
+		}
+	}
+	return QuestConditionRow{}, false
+}
+
+// findQuestConditionBlock finds the one condition block that closes the
+// previous quest's record. The block opens with that previous quest's id and a
+// fixed header, so the search skips the record's own leading id at offset 0.
+func findQuestConditionBlock(previousRecord []byte, previousID uint32) (QuestConditionRow, bool) {
 	var found QuestConditionRow
 	matches := 0
-	for pos := 1; pos+4 <= len(record); pos++ {
-		if bss.U32(record, pos) != id {
+	for pos := 1; pos+4 <= len(previousRecord); pos++ {
+		if bss.U32(previousRecord, pos) != previousID {
 			continue
 		}
-		c := bss.NewCursor(record, pos, len(record))
-		if c.U32() != id {
-			continue
-		}
-		header := c.Bytes(questConditionHeaderSize)
-		accept := c.UTF16()
-		complete := c.UTF16()
-		if !c.OK() {
-			continue
-		}
-		conditionEnd := c.Pos()
-		for objectivePos := conditionEnd + 24; objectivePos+12 <= len(record); objectivePos++ {
-			if bss.PeekUTF16Chars(record, objectivePos) == 0 {
-				continue
-			}
-			end := bss.NewCursor(record, objectivePos, len(record))
-			objective := end.UTF16()
-			unknownEnd := end.U32()
-			if !end.OK() || end.Remaining() != 0 {
-				continue
-			}
-			found = QuestConditionRow{
-				AcceptDSL:              accept,
-				CompleteDSL:            complete,
-				SourceObjective:        objective,
-				UnknownObjectivePrefix: bytes.Clone(record[conditionEnd:objectivePos]),
-				UnknownEnd:             unknownEnd,
-			}
-			copy(found.UnknownHeader[:], header)
+		headerStart := pos + 4
+		stringsPos := headerStart + questConditionHeaderSize
+		if row, ok := decodeQuestConditionStrings(previousRecord, stringsPos); ok {
+			row.UnknownHeader = bytes.Clone(previousRecord[headerStart:stringsPos])
+			found = row
 			matches++
-			break
 		}
 	}
 	return found, matches == 1
+}
+
+// decodeQuestConditionStrings reads the accept and complete DSL at pos, then
+// the source objective and final scalar, which must end exactly at the end of
+// data, where the owning record begins.
+func decodeQuestConditionStrings(data []byte, pos int) (QuestConditionRow, bool) {
+	c := bss.NewCursor(data, pos, len(data))
+	accept := c.UTF16()
+	complete := c.UTF16()
+	if !c.OK() {
+		return QuestConditionRow{}, false
+	}
+	conditionEnd := c.Pos()
+	for objectivePos := conditionEnd; objectivePos+12 <= len(data); objectivePos++ {
+		if bss.PeekUTF16Chars(data, objectivePos) == 0 {
+			continue
+		}
+		end := bss.NewCursor(data, objectivePos, len(data))
+		objective := end.UTF16()
+		unknownEnd := end.U32()
+		if !end.OK() || end.Remaining() != 0 {
+			continue
+		}
+		return QuestConditionRow{
+			AcceptDSL:              accept,
+			CompleteDSL:            complete,
+			SourceObjective:        objective,
+			UnknownObjectivePrefix: bytes.Clone(data[conditionEnd:objectivePos]),
+			UnknownEnd:             unknownEnd,
+		}, true
+	}
+	return QuestConditionRow{}, false
 }
