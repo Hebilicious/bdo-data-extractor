@@ -1192,25 +1192,25 @@ at +0, twelve zero reserved bytes at +8, and a quest-kind word at +20 whose low 
 has exactly one record matching that structure.
 
 `allquestlist.bss` is a PABR array of packed quest ids in the same physical order as
-the variable records in `quest.dbss`. The condition sub-record near the end of each
-ordinary quest has the following shape. Its self id and the next ordered quest id
-provide structural record boundaries; condition text is executable client DSL rather
-than localized prose.
+the variable records in `quest.dbss`. Each quest's condition block ends exactly where
+that quest's record begins, at its packed id. The first quest's block sits between the
+row count and the first record; every later block closes the previous quest's record and
+opens with the previous quest's id. The last record therefore carries no block.
+Condition text is executable client DSL rather than localized prose.
 
-| Condition tail field | Type | Notes |
+| Condition block field | Type | Notes |
 |---|---|---|
-| questId | u32 | `(questIndex << 16) \| questGroup`; repeats the owning record id |
-| unknownHeader | 25 bytes | Fixed condition-tail configuration |
+| previousQuestId | u32 | `(questIndex << 16) \| questGroup` of the record the block closes; absent in the first block |
+| unknownHeader | 25 bytes | Fixed condition-block configuration; 20 bytes in the first block |
 | acceptCondition | inline UTF-16 | Prerequisites such as `ClearQuest(...)`, level, class or item checks |
 | completeCondition | inline UTF-16 | Completion expression such as `meet(...)` |
-| unknownObjectivePrefix | variable bytes | At least 24 bytes; may contain a short counted section |
+| unknownObjectivePrefix | variable bytes | 24 bytes or more (16 in the first block); may contain a short counted section |
 | sourceObjective | inline UTF-16 | Korean presentation text for the objective |
-| unknownEnd | u32 | Final scalar; also marks the exact end of the record |
+| unknownEnd | u32 | Final scalar; the owning quest's record starts right after it |
 
 Condition expressions use semicolon-separated calls, comparisons, `!` negation and
 markers such as `<or>`. Localization table 18 supplies the translated objective text;
-it does not replace the condition DSL. The final entry in the current quest list is
-an incomplete placeholder and has no condition tail.
+it does not replace the condition DSL.
 
 Quest records contain five fixed-stride base-reward unions. Their family-stat
 sub-block begins at `128 + rewardSlot × 178`, for reward slots 0 through 4. Journal
